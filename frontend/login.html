@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoltCharge OS | Oracle Cloud EV Network Access</title>
+    <link rel="stylesheet" href="theme.css">
+    <script>
+        // Prevent authenticated users from visiting login; send to dashboard
+        if (localStorage.getItem('ev_user')) {
+            window.location.replace('dashboard.html');
+        }
+        window.addEventListener('pageshow', function (event) {
+            if (localStorage.getItem('ev_user')) {
+                window.location.replace('dashboard.html');
+            }
+        });
+    </script>
+    <style>
+        .login-wrapper {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Ambient glowing backdrop */
+        .ambient-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(90px);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.35;
+            animation: orbFloat 10s ease-in-out infinite alternate;
+        }
+        .ambient-orb-1 {
+            width: 420px;
+            height: 420px;
+            background: radial-gradient(circle, #00f59b 0%, transparent 70%);
+            top: 5%;
+            left: 10%;
+        }
+        .ambient-orb-2 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, #00e5ff 0%, transparent 70%);
+            bottom: 5%;
+            right: 10%;
+            animation-duration: 14s;
+        }
+
+        @keyframes orbFloat {
+            0% { transform: translateY(0) scale(1); }
+            100% { transform: translateY(-30px) scale(1.08); }
+        }
+
+        /* Main Auth Glass Card */
+        .auth-card {
+            width: 100%;
+            max-width: 440px;
+            background: rgba(14, 18, 28, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-lg);
+            padding: 36px 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 30px rgba(0, 245, 155, 0.08);
+            position: relative;
+            z-index: 10;
+        }
+
+        .auth-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 20%;
+            right: 20%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--neon-green), transparent);
+            box-shadow: 0 0 12px var(--neon-green);
+        }
+
+        /* Brand Header */
+        .brand-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .brand-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 14px;
+            background: rgba(0, 245, 155, 0.08);
+            border: 1px solid rgba(0, 245, 155, 0.3);
+            border-radius: var(--radius-full);
+            color: var(--neon-green);
+            font-family: var(--font-display);
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .brand-title {
+            font-family: var(--font-hud);
+            font-size: 1.8rem;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            background: linear-gradient(135deg, #ffffff 30%, #88ffcd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        .brand-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+        }
+
+        /* Mode Tabs Switcher */
+        .tabs-nav {
+            display: flex;
+            background: rgba(8, 11, 18, 0.8);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 4px;
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            font-family: var(--font-display);
+            font-size: 0.92rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: var(--transition);
+        }
+
+        .tab-btn.active {
+            background: rgba(0, 245, 155, 0.12);
+            color: var(--neon-green);
+            border: 1px solid rgba(0, 245, 155, 0.35);
+            box-shadow: 0 0 15px rgba(0, 245, 155, 0.15);
+        }
+
+        /* Input Groups with Icons */
+        .input-group {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .input-icon-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            color: var(--text-muted);
+            pointer-events: none;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+        }
+
+        .cyber-input.has-icon {
+            padding-left: 42px;
+        }
+
+        .cyber-input:focus ~ .input-icon,
+        .cyber-input:focus + .input-icon {
+            color: var(--neon-green);
+        }
+
+        /* Password Reveal Toggle */
+        .password-toggle {
+            position: absolute;
+            right: 14px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+        }
+        .password-toggle:hover {
+            color: var(--text-primary);
+        }
+
+        /* EV Model Presets */
+        .model-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .model-chip {
+            font-size: 0.72rem;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .model-chip:hover {
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            background: rgba(0, 229, 255, 0.08);
+        }
+
+
+    </style>
+</head>
+<body>
+    <div class="ambient-orb ambient-orb-1"></div>
+    <div class="ambient-orb ambient-orb-2"></div>
+
+    <div class="login-wrapper">
+        <div class="auth-card glass-panel glow-green">
+            <div class="brand-header">
+                <div class="brand-badge">
+                    <span class="beacon active"></span>
+                    <span>Oracle 26ai Cloud DB Connected</span>
+                </div>
+                <h1 class="brand-title">VOLTCHARGE</h1>
+                <p class="brand-subtitle">Smart EV Charging & DBMS Telemetry Network</p>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="tabs-nav">
+                <button type="button" class="tab-btn active" id="tab-login" onclick="setAuthMode(true)">Sign In</button>
+                <button type="button" class="tab-btn" id="tab-register" onclick="setAuthMode(false)">Register EV</button>
+            </div>
+
+            <h2 id="form-title" style="display: none;">Login</h2>
+
+            <form id="auth-form">
+                <!-- Registration Specific Fields -->
+                <div id="name-field" style="display: none;">
+                    <div class="input-group">
+                        <label for="name">Driver / Owner Name</label>
+                        <div class="input-icon-wrapper">
+                            <span class="input-icon">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            </span>
+                            <input type="text" id="name" class="cyber-input has-icon" placeholder="e.g. Rohan Sandesh">
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="model">EV Model & Trim</label>
+                        <div class="input-icon-wrapper">
+                            <span class="input-icon">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="7" rx="2"></rect><path d="M5 11l2-5h10l2 5"></path><circle cx="7.5" cy="15.5" r="1.5"></circle><circle cx="16.5" cy="15.5" r="1.5"></circle></svg>
+                            </span>
+                            <input type="text" id="model" class="cyber-input has-icon" placeholder="e.g. Tata Punch EV or Tesla Model 3">
+                        </div>
+                        <div class="model-chips">
+                            <span class="model-chip" onclick="selectModel('Tata Punch EV')">Punch EV</span>
+                            <span class="model-chip" onclick="selectModel('Tesla Model 3')">Tesla M3</span>
+                            <span class="model-chip" onclick="selectModel('Tata Nexon EV')">Nexon EV</span>
+                            <span class="model-chip" onclick="selectModel('Hyundai Ioniq 5')">Ioniq 5</span>
+                            <span class="model-chip" onclick="selectModel('MG ZS EV')">MG ZS</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Email Input -->
+                <div class="input-group">
+                    <label for="email">Account Email</label>
+                    <div class="input-icon-wrapper">
+                        <span class="input-icon">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                        </span>
+                        <input type="email" id="email" class="cyber-input has-icon" placeholder="name@domain.com" required>
+                    </div>
+                </div>
+
+                <!-- Password Input -->
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <div class="input-icon-wrapper">
+                        <span class="input-icon">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        </span>
+                        <input type="password" id="password" class="cyber-input has-icon" placeholder="Enter secure password" required>
+                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility()" title="Toggle visibility">
+                            <svg id="eye-icon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button type="submit" class="btn-cyber btn-cyber-primary" id="submit-btn" style="width: 100%; padding: 13px; font-size: 1rem; margin-top: 8px;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                    <span>Authenticate & Access Dashboard</span>
+                </button>
+            </form>
+
+            <span class="toggle-link" onclick="toggleForm()" id="toggle-btn" style="display: none;">Need an account? Register</span>
+
+
+        </div>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toast-container"></div>
+
+    <script>
+        let isLogin = true;
+
+        function setAuthMode(loginMode) {
+            isLogin = loginMode;
+            document.getElementById('tab-login').classList.toggle('active', isLogin);
+            document.getElementById('tab-register').classList.toggle('active', !isLogin);
+            document.getElementById('name-field').style.display = isLogin ? 'none' : 'block';
+            document.getElementById('form-title').innerText = isLogin ? 'Login' : 'Register';
+            
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.querySelector('span').innerText = isLogin ? 'Authenticate & Access Dashboard' : 'Register Vehicle & Create Wallet';
+            document.getElementById('toggle-btn').innerText = isLogin ? 'Need an account? Register' : 'Have an account? Login';
+        }
+
+        function toggleForm() {
+            setAuthMode(!isLogin);
+        }
+
+        function selectModel(modelName) {
+            document.getElementById('model').value = modelName;
+        }
+
+        function togglePasswordVisibility() {
+            const pwdInput = document.getElementById('password');
+            const isPassword = pwdInput.type === 'password';
+            pwdInput.type = isPassword ? 'text' : 'password';
+        }
+
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            let iconSvg = type === 'error' 
+                ? '<svg width="20" height="20" fill="none" stroke="#ff3366" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>'
+                : '<svg width="20" height="20" fill="none" stroke="#00f59b" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+
+            toast.innerHTML = `${iconSvg} <span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('toast-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+
+
+        // Form Submit
+        document.getElementById('auth-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const submitBtn = document.getElementById('submit-btn');
+            const originalBtnHtml = submitBtn.innerHTML;
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
+                <span>Synchronizing with Oracle Cloud...</span>
+            `;
+
+            const endpoint = isLogin ? '/api/login' : '/api/register';
+            const bodyData = isLogin 
+                ? { email, password }
+                : { 
+                    name: document.getElementById('name').value.trim(), 
+                    model: document.getElementById('model').value.trim() || 'Tata Punch EV', 
+                    email, 
+                    password 
+                  };
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bodyData)
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    showToast(isLogin ? 'Authentication successful! Loading cockpit...' : 'Account registered with ₹1000 default balance!', 'success');
+                    localStorage.setItem('ev_user', JSON.stringify(data.user));
+                    setTimeout(() => {
+                        window.location.replace('dashboard.html');
+                    }, 800);
+                } else {
+                    showToast(data.message || 'Authentication failed. Please verify credentials.', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+                }
+            } catch (err) {
+                console.error("Auth error:", err);
+                showToast("Connection to server failed. Please check network.", 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+            }
+        });
+    </script>
+    <style>
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</body>
+</html>

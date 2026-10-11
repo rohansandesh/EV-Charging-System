@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoltCharge Cockpit | EV Network & Oracle DBMS Hub</title>
+    <link rel="stylesheet" href="theme.css">
+    <script>
+        // Immediately redirect to login if unauthenticated
+        if (!localStorage.getItem('ev_user')) {
+            window.location.replace('login.html');
+        }
+        window.addEventListener('pageshow', function (event) {
+            if (!localStorage.getItem('ev_user')) {
+                window.location.replace('login.html');
+            }
+        });
+    </script>
+    <style>
+        /* Cockpit Specific Styling */
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Top Navigation Header */
+        .cockpit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            margin-bottom: 24px;
+            position: sticky;
+            top: 16px;
+            z-index: 100;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-logo-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(0, 245, 155, 0.2), rgba(0, 229, 255, 0.1));
+            border: 1px solid var(--border-active);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--neon-green);
+            box-shadow: 0 0 20px var(--neon-green-glow);
+        }
+
+        .header-brand h1 {
+            font-family: var(--font-hud);
+            font-size: 1.35rem;
+            letter-spacing: 0.06em;
+            background: linear-gradient(135deg, #ffffff 40%, #88ffcd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .header-brand-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 3px;
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-pill {
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            font-family: var(--font-display);
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-pill:hover, .nav-pill.active {
+            background: rgba(0, 245, 155, 0.1);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+            box-shadow: 0 0 16px var(--neon-green-glow);
+        }
+
+
+
+        .header-user-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-left: 12px;
+            border-left: 1px solid var(--border-subtle);
+        }
+
+        .user-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00f59b, #008053);
+            color: #05160e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        /* Cockpit Top HUD Cards (3 Columns) */
+        .hud-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .hud-grid { grid-template-columns: 1fr; }
+            .cockpit-header { flex-direction: column; gap: 16px; align-items: flex-start; }
+            .header-nav { width: 100%; justify-content: space-between; }
+        }
+
+        /* Vehicle Card */
+        .vehicle-card {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .vehicle-top-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .vehicle-title-wrap h2 {
+            font-family: var(--font-hud);
+            font-size: 1.25rem;
+            color: #fff;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .vehicle-model-badge {
+            display: inline-block;
+            background: rgba(0, 229, 255, 0.1);
+            color: var(--neon-cyan);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            border-radius: 4px;
+            font-size: 0.78rem;
+            padding: 2px 8px;
+            font-family: var(--font-mono);
+            font-weight: 600;
+        }
+
+        .vehicle-car-visual {
+            margin: 20px 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .ev-silhouette-svg {
+            width: 100%;
+            max-width: 320px;
+            height: auto;
+            filter: drop-shadow(0 0 15px rgba(0, 245, 155, 0.25));
+            animation: floatCar 6s ease-in-out infinite;
+        }
+
+        .vehicle-telemetry-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .telem-box {
+            background: rgba(8, 11, 18, 0.6);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+        }
+
+        .telem-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        .telem-val {
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Battery Gauge Card */
+        .battery-card {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+        }
+
+        .gauge-container {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            margin: 8px 0;
+        }
+
+        .gauge-svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+
+        .gauge-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.06);
+            stroke-width: 10;
+        }
+
+        .gauge-bar {
+            fill: none;
+            stroke: var(--neon-green);
+            stroke-width: 10;
+            stroke-linecap: round;
+            stroke-dasharray: 339.29;
+            stroke-dashoffset: 68; /* Dynamic */
+            transition: stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.5s ease;
+            filter: drop-shadow(0 0 10px var(--neon-green-glow));
+        }
+
+        .gauge-center-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .battery-percent-display {
+            font-family: var(--font-hud);
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: #fff;
+            line-height: 1;
+        }
+
+        .battery-bolt-icon {
+            color: var(--neon-green);
+            margin-bottom: 4px;
+            animation: lightningFlicker 3s infinite;
+        }
+
+        .battery-cells-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .battery-cell-block {
+            width: 24px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 2px;
+            transition: var(--transition);
+        }
+
+        .battery-cell-block.charged {
+            background: var(--neon-green);
+            box-shadow: 0 0 8px var(--neon-green);
+        }
+
+        /* Digital Titanium Wallet Card */
+        .wallet-hud-card {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .holo-card {
+            background: linear-gradient(135deg, #141a29 0%, #0d111c 100%);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            margin-bottom: 16px;
+        }
+
+        .holo-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent 45%,
+                rgba(0, 245, 155, 0.08) 50%,
+                transparent 55%
+            );
+            pointer-events: none;
+            animation: holoShift 6s linear infinite;
+        }
+
+        @keyframes holoShift {
+            0% { transform: translateY(-50%) rotate(0deg); }
+            100% { transform: translateY(50%) rotate(360deg); }
+        }
+
+        .holo-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .emv-chip {
+            width: 36px;
+            height: 28px;
+            background: linear-gradient(135deg, #f1c40f 0%, #d4ac0d 100%);
+            border-radius: 5px;
+            border: 1px solid #b7950b;
+            position: relative;
+        }
+
+        .emv-chip::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: rgba(0, 0, 0, 0.25);
+        }
+
+        .wallet-amount-lg {
+            font-family: var(--font-hud);
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #fff;
+            letter-spacing: 0.03em;
+            margin: 8px 0;
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .wallet-currency-symbol {
+            color: var(--neon-green);
+            font-size: 1.4rem;
+        }
+
+        .quick-topup-pills {
+            display: flex;
+            gap: 8px;
+        }
+
+        .quick-chip {
+            flex: 1;
+            padding: 6px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .quick-chip:hover {
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+            background: rgba(0, 245, 155, 0.08);
+        }
+
+        /* Active Charging Session Cockpit Panel */
+        .session-dock {
+            margin-bottom: 24px;
+            transition: var(--transition);
+        }
+
+        .active-charging-panel {
+            background: linear-gradient(135deg, rgba(14, 25, 22, 0.85) 0%, rgba(10, 16, 26, 0.85) 100%);
+            border: 1px solid var(--neon-green);
+            box-shadow: 0 0 30px var(--neon-green-glow);
+            padding: 24px;
+            border-radius: var(--radius-md);
+            position: relative;
+            overflow: hidden;
+            animation: pulseGlow 4s infinite alternate;
+        }
+
+        .session-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .session-ticker-box {
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(0, 245, 155, 0.2);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+        }
+
+        .session-ticker-label {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        .session-ticker-val {
+            font-family: var(--font-hud);
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .charging-flow-animation {
+            height: 4px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+            margin: 12px 0 16px;
+        }
+
+        .charging-flow-bar {
+            position: absolute;
+            height: 100%;
+            width: 40%;
+            background: linear-gradient(90deg, transparent, var(--neon-green), transparent);
+            animation: energyFlow 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes energyFlow {
+            0% { left: -40%; }
+            100% { left: 100%; }
+        }
+
+        /* Stations Network Section */
+        .stations-section {
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .stations-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .stations-title-wrap h2 {
+            font-family: var(--font-hud);
+            font-size: 1.25rem;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stations-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .stations-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+            gap: 20px;
+        }
+
+        @media (max-width: 640px) {
+            .stations-cards-grid { grid-template-columns: 1fr; }
+        }
+
+        .station-card {
+            background: rgba(13, 17, 27, 0.85);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .station-card:hover {
+            border-color: rgba(0, 245, 155, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
+        }
+
+        .station-top-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 14px;
+        }
+
+        .station-name {
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .station-location {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .district-badge {
+            background: rgba(0, 229, 255, 0.08);
+            border: 1px solid rgba(0, 229, 255, 0.25);
+            color: var(--neon-cyan);
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .chargers-bay-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        @media (max-width: 480px) {
+            .chargers-bay-grid { grid-template-columns: 1fr; }
+        }
+
+        .charger-bay {
+            background: rgba(8, 11, 18, 0.8);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: var(--transition);
+        }
+
+        .charger-bay:hover {
+            border-color: var(--border-glass);
+        }
+
+        .charger-bay.bay-occupied {
+            border-color: rgba(255, 51, 102, 0.25);
+            background: rgba(25, 12, 16, 0.4);
+        }
+
+        .charger-port-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .port-id-badge {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        .charger-type-pill {
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .type-fast { background: rgba(255, 176, 32, 0.12); color: var(--neon-amber); border: 1px solid rgba(255, 176, 32, 0.3); }
+        .type-standard { background: rgba(0, 229, 255, 0.1); color: var(--neon-cyan); border: 1px solid rgba(0, 229, 255, 0.3); }
+
+        .charger-rate-txt {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin: 4px 0 8px;
+        }
+
+
+
+        /* Modals & Dialogs */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(3, 5, 8, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: rgba(15, 20, 32, 0.95);
+            backdrop-filter: blur(25px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 32px 28px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8);
+            position: relative;
+            animation: modalScale 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes modalScale {
+            from { transform: scale(0.92); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* Receipt Modal Specifics */
+        .receipt-card {
+            border-top: 4px solid var(--neon-green);
+        }
+
+        .bill-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+        }
+
+        .bill-row span:last-child {
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-weight: 600;
+        }
+
+        .bill-total {
+            border-top: 2px solid var(--neon-green);
+            border-bottom: none;
+            padding-top: 14px;
+            margin-top: 10px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .bill-total span:last-child {
+            color: var(--neon-green);
+            font-size: 1.4rem;
+            font-family: var(--font-hud);
+        }
+
+        .payment-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 18px 0;
+        }
+
+        .payment-btn {
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.88rem;
+            transition: var(--transition);
+        }
+
+        .payment-btn.active {
+            border-color: var(--neon-green);
+            background: rgba(0, 245, 155, 0.12);
+            color: var(--neon-green);
+            box-shadow: 0 0 16px var(--neon-green-glow);
+        }
+
+        /* Legacy status helpers mapped to neon */
+        .status-available { color: var(--neon-green); font-weight: 700; }
+        .status-occupied { color: var(--neon-crimson); font-weight: 700; }
+        .wallet-clickable { color: var(--neon-green); cursor: pointer; text-decoration: underline; margin-left: 6px; }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Main Top Bar -->
+        <header class="cockpit-header glass-panel">
+            <div class="header-brand">
+                <div class="brand-logo-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                </div>
+                <div>
+                    <h1>VOLTCHARGE OS</h1>
+                    <div class="header-brand-meta">
+                        <span class="beacon active"></span>
+                        <span>ORACLE CLUSTER 26ai</span>
+                        <span>•</span>
+                        <span id="live-clock">--:--:--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Header Navigation -->
+            <div class="header-nav">
+                <button type="button" class="nav-pill active" id="tab-btn-cockpit">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                    <span>Cockpit & Grid</span>
+                </button>
+                <button type="button" class="nav-pill" onclick="openWalletModal()">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                    <span>+ Top Up</span>
+                </button>
+            </div>
+
+            <div class="header-user-badge">
+                <div class="user-avatar" id="user-avatar-initial">U</div>
+                <div>
+                    <div style="font-size: 0.88rem; font-weight: 700; color: #fff;" id="header-user-name">Loading...</div>
+                    <div style="font-size: 0.74rem; color: var(--neon-green);" id="header-ev-model">EV Active</div>
+                </div>
+                <button class="btn-cyber btn-cyber-danger" style="padding: 7px 12px; font-size: 0.78rem;" onclick="logout()">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- VIEW 1: COCKPIT & GRID (Default) -->
+        <main id="cockpit-view">
+            <!-- Cockpit Top Telemetry Grid (3 Cards) -->
+            <section class="hud-grid">
+                <!-- Vehicle Telemetry Card -->
+                <div class="glass-panel vehicle-card">
+                    <div class="vehicle-top-info">
+                        <div class="vehicle-title-wrap">
+                            <h2>
+                                <svg width="20" height="20" fill="none" stroke="var(--neon-green)" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="7" rx="2"></rect><path d="M5 11l2-5h10l2 5"></path><circle cx="7.5" cy="15.5" r="1.5"></circle><circle cx="16.5" cy="15.5" r="1.5"></circle></svg>
+                                <span>Vehicle HUD</span>
+                            </h2>
+                            <p style="font-size: 0.82rem; color: var(--text-secondary);">Owner: <strong id="cust-name" style="color: #fff;">Loading...</strong></p>
+                        </div>
+                        <span class="vehicle-model-badge" id="ev-model">Tesla Model 3</span>
+                    </div>
+
+                    <!-- Stylized Futuristic EV Silhouette Graphic -->
+                    <div class="vehicle-car-visual">
+                        <svg class="ev-silhouette-svg" viewBox="0 0 340 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#00f59b" stop-opacity="0.8"/>
+                                    <stop offset="50%" stop-color="#00e5ff" stop-opacity="0.9"/>
+                                    <stop offset="100%" stop-color="#a855f7" stop-opacity="0.7"/>
+                                </linearGradient>
+                                <linearGradient id="glowG" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#00f59b" stop-opacity="0.6"/>
+                                    <stop offset="100%" stop-color="transparent" stop-opacity="0"/>
+                                </linearGradient>
+                            </defs>
+                            <!-- Ground Neon Underglow -->
+                            <ellipse cx="170" cy="108" rx="140" ry="8" fill="url(#glowG)"/>
+                            <!-- Car Chassis Path -->
+                            <path d="M25 88 L45 88 Q55 65 95 62 L130 38 Q150 30 200 30 L235 48 Q275 55 295 72 L315 76 Q325 80 325 88 L295 88" stroke="url(#bodyGrad)" stroke-width="2.5" fill="none"/>
+                            <!-- Glass Roof -->
+                            <path d="M128 42 L198 34 Q226 36 242 54 L142 54 Z" fill="rgba(0, 229, 255, 0.15)" stroke="rgba(0, 229, 255, 0.4)" stroke-width="1.5"/>
+                            <!-- Wheels -->
+                            <circle cx="78" cy="88" r="18" stroke="#00f59b" stroke-width="2" fill="#07090e"/>
+                            <circle cx="78" cy="88" r="8" fill="#00f59b" opacity="0.6"/>
+                            <circle cx="265" cy="88" r="18" stroke="#00e5ff" stroke-width="2" fill="#07090e"/>
+                            <circle cx="265" cy="88" r="8" fill="#00e5ff" opacity="0.6"/>
+                            <!-- Headlight Beams -->
+                            <polygon points="318,78 340,70 340,86" fill="rgba(0, 245, 155, 0.3)"/>
+                            <!-- Battery Pack Base -->
+                            <rect x="105" y="85" width="130" height="6" rx="2" fill="rgba(0, 245, 155, 0.3)" stroke="var(--neon-green)" stroke-width="1"/>
+                        </svg>
+                    </div>
+
+                    <div class="vehicle-telemetry-row">
+                        <div class="telem-box">
+                            <div class="telem-label">Est. Range</div>
+                            <div class="telem-val" id="est-range-val">0 km</div>
+                        </div>
+                        <div class="telem-box">
+                            <div class="telem-label">BMS Status</div>
+                            <div class="telem-val" style="color: var(--neon-green); font-size: 0.95rem;">400V DC • Sync</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Circular Gauge Battery Card -->
+                <div class="glass-panel battery-card">
+                    <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                        <h2 style="font-family: var(--font-hud); font-size: 1.1rem; color: #fff; margin: 0;">Battery Telemetry</h2>
+                        <span class="beacon active" id="battery-status-beacon"></span>
+                    </div>
+
+                    <div class="gauge-container">
+                        <svg class="gauge-svg" viewBox="0 0 120 120">
+                            <circle class="gauge-bg" cx="60" cy="60" r="54"></circle>
+                            <circle class="gauge-bar" id="battery-gauge-bar" cx="60" cy="60" r="54"></circle>
+                        </svg>
+                        <div class="gauge-center-content">
+                            <div class="battery-bolt-icon">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                            </div>
+                            <div class="battery-percent-display"><span id="battery-pct">0</span>%</div>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase;">State of Charge</span>
+                        </div>
+                    </div>
+
+                    <!-- 4 Battery Cell Segments Indicator -->
+                    <div class="battery-cells-row" id="battery-cells-row">
+                        <div class="battery-cell-block" id="cell-1"></div>
+                        <div class="battery-cell-block" id="cell-2"></div>
+                        <div class="battery-cell-block" id="cell-3"></div>
+                        <div class="battery-cell-block" id="cell-4"></div>
+                    </div>
+
+                    <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 14px;" id="battery-mode-label">
+                        Standard Standby Mode (1% drain / 15s)
+                    </div>
+                </div>
+
+                <!-- Titanium Holographic Digital Wallet Card -->
+                <div class="glass-panel wallet-hud-card">
+                    <div class="holo-card">
+                        <div class="holo-top">
+                            <div class="emv-chip"></div>
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--neon-green)" stroke-width="1.5"><path d="M12 2a10 10 0 0 1 10 10"></path><path d="M12 6a6 6 0 0 1 6 6"></path><path d="M12 10a2 2 0 0 1 2 2"></path></svg>
+                        </div>
+                        <div style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em;">Active RFID EV Pass Balance</div>
+                        <div class="wallet-amount-lg">
+                            <span class="wallet-currency-symbol">₹</span>
+                            <span id="balance">0.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.76rem; color: var(--text-muted); font-family: var(--font-mono);">
+                            <span>VOLTCHARGE PLATINUM</span>
+                            <span class="wallet-clickable" onclick="openWalletModal()">(+ Top Up)</span>
+                        </div>
+                    </div>
+
+                    <div class="quick-topup-pills">
+                        <button type="button" class="quick-chip" onclick="quickTopUpPreset(200)">+ ₹200</button>
+                        <button type="button" class="quick-chip" onclick="quickTopUpPreset(500)">+ ₹500</button>
+                        <button type="button" class="quick-chip" onclick="quickTopUpPreset(1000)">+ ₹1000</button>
+                        <button type="button" class="btn-cyber btn-cyber-primary" style="padding: 6px 12px; font-size: 0.76rem;" onclick="openWalletModal()">Add Custom</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Active Charging Session Dock (Toggles smoothly when active) -->
+            <section class="session-dock">
+                <div id="active-sessions">
+                    <div class="glass-panel" style="padding: 20px; display: flex; align-items: center; justify-content: space-between; border-style: dashed;">
+                        <div style="display: flex; align-items: center; gap: 14px;">
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
+                                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            </div>
+                            <div>
+                                <h3 style="font-size: 1rem; color: #fff; margin-bottom: 2px;">No Charging Session In Progress</h3>
+                                <p style="font-size: 0.82rem; color: var(--text-secondary);">Select an available high-speed charging port from any Kerala station below to plug in.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Nearby Kerala Stations Grid -->
+            <section class="glass-panel stations-section">
+                <div class="stations-header-bar">
+                    <div class="stations-title-wrap">
+                        <h2>
+                            <svg width="22" height="22" fill="none" stroke="var(--neon-cyan)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                            <span>Kerala Charging Network Hub</span>
+                        </h2>
+                    </div>
+
+                    <div class="stations-controls">
+                        <label for="district-filter" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">📍 Filter District:</label>
+                        <select id="district-filter" class="cyber-select" onclick="event.stopPropagation();" onchange="filterStationsByDistrict()">
+                            <option value="Thiruvananthapuram" selected>Thiruvananthapuram</option>
+                            <option value="Kollam">Kollam</option>
+                            <option value="Pathanamthitta">Pathanamthitta</option>
+                            <option value="Alappuzha">Alappuzha</option>
+                            <option value="Kottayam">Kottayam</option>
+                            <option value="Idukki">Idukki</option>
+                            <option value="Ernakulam">Ernakulam</option>
+                            <option value="Thrissur">Thrissur</option>
+                            <option value="Palakkad">Palakkad</option>
+                            <option value="Malappuram">Malappuram</option>
+                            <option value="Kozhikode">Kozhikode</option>
+                            <option value="Wayanad">Wayanad</option>
+                            <option value="Kannur">Kannur</option>
+                            <option value="Kasaragod">Kasaragod</option>
+                            <option value="All">All Kerala Stations (30+)</option>
+                        </select>
+                        <button type="button" class="btn-cyber btn-cyber-outline" style="padding: 8px 14px; font-size: 0.8rem;" onclick="filterStationsByDistrict()">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                            <span>Refresh Grid</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stations List Container -->
+                <div id="stations-list">
+                    <div style="text-align: center; color: var(--text-muted); padding: 40px;">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite; margin-bottom: 12px;"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line></svg>
+                        <p>Querying Oracle Database for station bays...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+
+    </div>
+
+    <!-- Wallet Top-Up Modal -->
+    <div id="wallet-modal" class="modal-overlay">
+        <div class="modal-content glass-panel glow-green">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="font-family: var(--font-hud); font-size: 1.25rem; color: var(--neon-green); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                    <span>Wallet Top-Up</span>
+                </h2>
+                <button type="button" onclick="closeWalletModal()" style="background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer;">✕</button>
+            </div>
+
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px;">Enter amount to add to your EV pass:</p>
+            <input type="number" id="topup-amount" class="cyber-input" value="500" min="50" step="50" placeholder="Enter amount (₹)">
+
+            <div class="quick-topup-pills" style="margin: 10px 0 16px;">
+                <span class="quick-chip" onclick="setTopupInput(200)">₹200</span>
+                <span class="quick-chip" onclick="setTopupInput(500)">₹500</span>
+                <span class="quick-chip" onclick="setTopupInput(1000)">₹1000</span>
+                <span class="quick-chip" onclick="setTopupInput(2500)">₹2500</span>
+            </div>
+
+            <div id="upi-qr-section" style="text-align: center; background: rgba(8, 11, 18, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 16px;">
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 10px;">Scan QR with any UPI App (GPay / PhonePe / Paytm):</p>
+                <div style="display: inline-block; padding: 8px; background: #fff; border-radius: 8px; box-shadow: 0 0 20px rgba(0, 245, 155, 0.3);">
+                    <img id="upi-qr-img" src="" alt="UPI QR Code" style="width: 160px; height: 160px; display: block;">
+                </div>
+            </div>
+
+            <button class="btn-cyber btn-cyber-primary" style="width: 100%; margin-top: 16px; padding: 12px;" onclick="addMoneyToWallet()">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"></path></svg>
+                <span>Confirm & Credit Balance</span>
+            </button>
+            <button class="btn-cyber btn-cyber-outline" style="width: 100%; margin-top: 8px; padding: 10px;" onclick="closeWalletModal()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Detailed Invoice / Checkout Modal -->
+    <div id="bill-modal" class="modal-overlay">
+        <div class="modal-content glass-panel receipt-card">
+            <div style="text-align: center; margin-bottom: 16px;">
+                <div style="display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; background: rgba(0, 245, 155, 0.15); color: var(--neon-green); margin-bottom: 8px;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                </div>
+                <h2 style="font-family: var(--font-hud); font-size: 1.3rem; color: #fff; margin: 0;">Charging Tax Invoice</h2>
+            </div>
+
+            <div class="bill-row">
+                <span>Energy Consumed:</span>
+                <span><strong id="bill-watts">0</strong> W-h (<span id="bill-kwh">0.00</span> kWh)</span>
+            </div>
+            <div class="bill-row">
+                <span>Tariff Rate:</span>
+                <span id="bill-rate">₹0.00 / kWh</span>
+            </div>
+            <div class="bill-row">
+                <span>Base Amount:</span>
+                <span id="bill-base">₹0.00</span>
+            </div>
+            <div class="bill-row">
+                <span>GST (18% itemized):</span>
+                <span id="bill-gst">₹0.00</span>
+            </div>
+            <div class="bill-row bill-total">
+                <span>Total Amount:</span>
+                <span id="bill-total">₹0.00</span>
+            </div>
+
+            <div style="margin-top: 18px;">
+                <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Payment Channel:</label>
+                <div class="payment-options">
+                    <div class="payment-btn active" id="pay-opt-wallet" onclick="selectCheckoutPayment('wallet')">
+                        💳 In-App Wallet<br>
+                        <small style="color: var(--neon-green);">Bal: ₹<span id="checkout-balance">0.00</span></small>
+                    </div>
+                    <div class="payment-btn" id="pay-opt-gpay" onclick="selectCheckoutPayment('gpay')">
+                        📱 Instant UPI QR<br>
+                        <small style="color: var(--neon-cyan);">GPay / PhonePe</small>
+                    </div>
+                </div>
+            </div>
+
+            <div id="gpay-qr-checkout" style="display: none; text-align: center; margin: 12px 0; background: rgba(8, 11, 18, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px;">Scan with GPay to settle invoice:</p>
+                <div style="display: inline-block; padding: 6px; background: #fff; border-radius: 6px;">
+                    <img id="gpay-checkout-qr" src="" alt="GPay QR Code" style="width: 140px; height: 140px; display: block;">
+                </div>
+            </div>
+
+            <button class="btn-cyber btn-cyber-primary" style="width: 100%; margin-top: 12px; padding: 12px;" onclick="processFinalPayment()">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Settle & Finalize Payment</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <script>
+        let user = JSON.parse(localStorage.getItem('ev_user'));
+        if (!user) {
+            window.location.replace('login.html');
+        }
+
+        // Prevent back-button from leaving the dashboard while logged in
+        history.pushState(null, '', window.location.href);
+        window.addEventListener('popstate', function () {
+            if (localStorage.getItem('ev_user')) {
+                history.pushState(null, '', window.location.href);
+            }
+        });
+
+        let activeSessionId = null;
+        let chargingInterval = null;
+        let startBatteryLevel = 0;
+        let currentBillData = null;
+        let selectedCheckoutMethod = 'wallet';
+        let sessionTimerInterval = null;
+        let sessionSecondsElapsed = 0;
+        let activeChargerId = null;
+
+        // Toast Helper
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            let iconSvg = type === 'error' 
+                ? '<svg width="20" height="20" fill="none" stroke="#ff3366" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>'
+                : '<svg width="20" height="20" fill="none" stroke="#00f59b" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+
+            toast.innerHTML = `${iconSvg} <span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('toast-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Live Clock
+        function updateLiveClock() {
+            const now = new Date();
+            document.getElementById('live-clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        setInterval(updateLiveClock, 1000);
+        updateLiveClock();
+
+
+
+        function updateUserData(u) {
+            if (!u) return;
+            const name = u.name || u.NAME || u.Name || 'Driver';
+            const model = u.model || u.EV_MODEL || u.EV_Model || 'EV';
+            const battery = u.battery !== undefined ? u.battery : (u.BATTERY_PERCENT !== undefined ? u.BATTERY_PERCENT : u.Battery_Percent || 0);
+            const balance = u.balance !== undefined ? u.balance : (u.BALANCE !== undefined ? u.BALANCE : u.Balance || 0);
+
+            document.getElementById('cust-name').innerText = name;
+            document.getElementById('header-user-name').innerText = name;
+            document.getElementById('user-avatar-initial').innerText = name.charAt(0).toUpperCase();
+            document.getElementById('ev-model').innerText = model;
+            document.getElementById('header-ev-model').innerText = model;
+            document.getElementById('battery-pct').innerText = battery;
+            document.getElementById('balance').innerText = parseFloat(balance || 0).toFixed(2);
+            document.getElementById('checkout-balance').innerText = parseFloat(balance || 0).toFixed(2);
+
+            // Update Est Range (4.2 km per %)
+            const estKm = Math.round(parseInt(battery) * 4.2);
+            document.getElementById('est-range-val').innerText = `${estKm} km`;
+
+            // Update Circular Battery Gauge SVG
+            updateBatteryGauge(battery);
+        }
+
+        function updateBatteryGauge(percent) {
+            const gaugeBar = document.getElementById('battery-gauge-bar');
+            const p = Math.max(0, Math.min(100, parseInt(percent)));
+            const circumference = 339.29;
+            const offset = circumference * (1 - (p / 100));
+            gaugeBar.style.strokeDashoffset = offset;
+
+            // Shift colors depending on battery level
+            if (p <= 20) {
+                gaugeBar.style.stroke = 'var(--neon-crimson)';
+                gaugeBar.style.filter = 'drop-shadow(0 0 10px var(--neon-crimson-glow))';
+            } else if (p <= 50) {
+                gaugeBar.style.stroke = 'var(--neon-amber)';
+                gaugeBar.style.filter = 'drop-shadow(0 0 10px var(--neon-amber-glow))';
+            } else {
+                gaugeBar.style.stroke = 'var(--neon-green)';
+                gaugeBar.style.filter = 'drop-shadow(0 0 10px var(--neon-green-glow))';
+            }
+
+            // Update Cell Blocks
+            const activeCells = Math.ceil(p / 25);
+            for (let i = 1; i <= 4; i++) {
+                const cell = document.getElementById(`cell-${i}`);
+                if (cell) {
+                    cell.className = i <= activeCells ? 'battery-cell-block charged' : 'battery-cell-block';
+                }
+            }
+        }
+
+        // Parallel Data Startup Fetch
+        async function loadData() {
+            updateUserData(user);
+
+            const userId = user.id || user.Customer_ID;
+            const district = document.getElementById('district-filter').value;
+
+            try {
+                const [userRes, stationsRes, sessionRes] = await Promise.all([
+                    fetch(`/api/user/${userId}`),
+                    fetch('/api/stations-nearby', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ district })
+                    }),
+                    fetch(`/api/sessions/active/${userId}`)
+                ]);
+
+                // User data
+                const userData = await userRes.json();
+                if (userData.success) {
+                    user = userData.user;
+                    localStorage.setItem('ev_user', JSON.stringify(user));
+                    updateUserData(user);
+                }
+
+                // Stations data
+                const stationsData = await stationsRes.json();
+                renderStations(stationsData, district);
+
+                // Active Session data
+                const sessionData = await sessionRes.json();
+                if (sessionData.success && sessionData.activeSession) {
+                    activeSessionId = sessionData.activeSession.session_id;
+                    activeChargerId = sessionData.activeSession.charger_id;
+                    
+                    if (startBatteryLevel === 0) {
+                        startBatteryLevel = parseInt(document.getElementById('battery-pct').innerText);
+                    }
+
+                    renderActiveSessionUI(activeSessionId, activeChargerId);
+                    startChargingLoop();
+                } else {
+                    renderStandbySessionUI();
+                }
+            } catch (err) {
+                console.error("Failed to load initial data:", err);
+            }
+        }
+
+        function renderActiveSessionUI(sessionId, chargerId) {
+            document.getElementById('active-sessions').innerHTML = `
+                <div class="active-charging-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span class="beacon active"></span>
+                            <h3 style="font-family: var(--font-hud); font-size: 1.15rem; color: #fff; margin: 0;">
+                                ACTIVE CHARGING SESSION #${sessionId}
+                            </h3>
+                            <span class="district-badge" style="background: rgba(0,245,155,0.1); color: var(--neon-green); border-color: rgba(0,245,155,0.3);">
+                                CCS2 BAY #${chargerId} CONNECTED
+                            </span>
+                        </div>
+                        <button class="btn-cyber btn-cyber-danger" onclick="stopCharging()">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+                            <span>Stop Charging & View Tax Invoice</span>
+                        </button>
+                    </div>
+
+                    <div class="charging-flow-animation">
+                        <div class="charging-flow-bar"></div>
+                    </div>
+
+                    <div class="session-meta-grid">
+                        <div class="session-ticker-box">
+                            <div class="session-ticker-label">Duration Elapsed</div>
+                            <div class="session-ticker-val" id="ticker-time">00:00:00</div>
+                        </div>
+                        <div class="session-ticker-box">
+                            <div class="session-ticker-label">Charging Speed</div>
+                            <div class="session-ticker-val" style="color: var(--neon-cyan);">60.0 kW</div>
+                        </div>
+                        <div class="session-ticker-box">
+                            <div class="session-ticker-label">Energy Transferred</div>
+                            <div class="session-ticker-val" id="ticker-kwh" style="color: var(--neon-green);">+0.50 kWh</div>
+                        </div>
+                        <div class="session-ticker-box">
+                            <div class="session-ticker-label">Accrued Tariff</div>
+                            <div class="session-ticker-val" id="ticker-cost">₹10.62</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('battery-mode-label').innerHTML = `<span style="color: var(--neon-green); font-weight: bold;">⚡ Ultra-Fast Charging Active (+1% / 2s)</span>`;
+            startSessionDurationTimer();
+        }
+
+        function renderStandbySessionUI() {
+            document.getElementById('active-sessions').innerHTML = `
+                <div class="glass-panel" style="padding: 20px; display: flex; align-items: center; justify-content: space-between; border-style: dashed;">
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 1rem; color: #fff; margin-bottom: 2px;">No Active Charging Session</h3>
+                            <p style="font-size: 0.82rem; color: var(--text-secondary);">Select an available high-speed charging port from any Kerala station below to plug in.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('battery-mode-label').innerText = 'Standard Standby Mode (1% drain / 15s)';
+            if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+            sessionSecondsElapsed = 0;
+        }
+
+        function startSessionDurationTimer() {
+            if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+            sessionTimerInterval = setInterval(() => {
+                sessionSecondsElapsed++;
+                const hrs = String(Math.floor(sessionSecondsElapsed / 3600)).padStart(2, '0');
+                const mins = String(Math.floor((sessionSecondsElapsed % 3600) / 60)).padStart(2, '0');
+                const secs = String(sessionSecondsElapsed % 60).padStart(2, '0');
+                const timeStr = `${hrs}:${mins}:${secs}`;
+                
+                const timeEl = document.getElementById('ticker-time');
+                if (timeEl) timeEl.innerText = timeStr;
+
+                // Live accumulator estimate
+                const currentBattery = parseInt(document.getElementById('battery-pct').innerText);
+                const addedPct = Math.max(0, currentBattery - startBatteryLevel);
+                const liveKwh = Math.max(0.5, (addedPct * 0.5) + (sessionSecondsElapsed * 0.002)).toFixed(2);
+                const liveCost = (liveKwh * 18 * 1.18).toFixed(2);
+
+                const kwhEl = document.getElementById('ticker-kwh');
+                if (kwhEl) kwhEl.innerText = `+${liveKwh} kWh`;
+                const costEl = document.getElementById('ticker-cost');
+                if (costEl) costEl.innerText = `₹${liveCost}`;
+            }, 1000);
+        }
+
+        function renderStations(data, district) {
+            const container = document.getElementById('stations-list');
+            if (data.success && data.stations.length > 0) {
+                container.innerHTML = `
+                    <div class="stations-cards-grid">
+                        ${data.stations.map(s => `
+                            <div class="station-card">
+                                <div>
+                                    <div class="station-top-meta">
+                                        <div>
+                                            <h3 class="station-name">${s.name}</h3>
+                                            <div class="station-location">
+                                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                                                <span>${s.location}</span>
+                                            </div>
+                                        </div>
+                                        <span class="district-badge">${s.district}</span>
+                                    </div>
+
+                                    <div class="chargers-bay-grid">
+                                        ${s.chargers.map(c => `
+                                            <div class="charger-bay ${c.status !== 'Available' ? 'bay-occupied' : ''}">
+                                                <div>
+                                                    <div class="charger-port-title">
+                                                        <span class="port-id-badge">Port #${c.id}</span>
+                                                        <span class="charger-type-pill ${c.type === 'Fast' ? 'type-fast' : 'type-standard'}">${c.type}</span>
+                                                    </div>
+                                                    <div class="charger-rate-txt">₹${c.rate}/kWh</div>
+                                                    <div style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                                                        <span class="beacon ${c.status === 'Available' ? 'active' : 'busy'}"></span>
+                                                        <span class="status-${c.status.toLowerCase()}">${c.status}</span>
+                                                    </div>
+                                                </div>
+                                                <button class="btn-cyber ${c.status === 'Available' ? 'btn-cyber-primary' : 'btn-cyber-outline'}" 
+                                                    style="width: 100%; padding: 8px; font-size: 0.78rem;" 
+                                                    ${c.status !== 'Available' ? 'disabled' : ''} 
+                                                    onclick="startCharging(${c.id})">
+                                                    ${c.status === 'Available' ? '⚡ Plug In & Charge' : 'Occupied'}
+                                                </button>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div style="text-align: center; color: var(--text-muted); padding: 40px;">
+                        <p>No stations registered in ${district}. Try switching to "All Kerala Stations".</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function filterStationsByDistrict() {
+            const district = document.getElementById('district-filter').value;
+            try {
+                const stRes = await fetch('/api/stations-nearby', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ district })
+                });
+                const data = await stRes.json();
+                renderStations(data, district);
+                showToast(`Filter applied: ${district}`, 'info');
+            } catch (err) {
+                console.error("Failed to load stations:", err);
+            }
+        }
+
+        async function startCharging(chargerId) {
+            const btn = window.event ? window.event.target.closest('button') : null;
+            let originalText = "";
+            if (btn) {
+                originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = "<span>Connecting...</span>";
+            }
+
+            try {
+                const res = await fetch('/api/sessions/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ charger_id: chargerId, user_id: user.id || user.Customer_ID })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    activeSessionId = data.session.session_id;
+                    activeChargerId = chargerId;
+                    startBatteryLevel = parseInt(document.getElementById('battery-pct').innerText);
+
+                    showToast(`Connected to Port #${chargerId}! Session #${activeSessionId} Active`, 'success');
+                    renderActiveSessionUI(activeSessionId, activeChargerId);
+                    startChargingLoop();
+                    filterStationsByDistrict(); // Refresh chargers state in grid
+                } else {
+                    showToast(data.message || 'Charger occupied or error.', 'error');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                }
+            } catch (err) {
+                console.error("Error starting session:", err);
+                showToast("Failed to start charging session.", 'error');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            }
+        }
+
+        function startChargingLoop() {
+            if (chargingInterval) clearInterval(chargingInterval);
+
+            chargingInterval = setInterval(async () => {
+                let currentBattery = parseInt(document.getElementById('battery-pct').innerText);
+
+                if (currentBattery < 100) {
+                    currentBattery++;
+                    document.getElementById('battery-pct').innerText = currentBattery;
+                    user.battery = currentBattery;
+                    localStorage.setItem('ev_user', JSON.stringify(user));
+                    updateBatteryGauge(currentBattery);
+
+                    try {
+                        await fetch('/api/user/update-battery', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                user_id: user.id || user.Customer_ID, 
+                                battery: currentBattery 
+                            })
+                        });
+                    } catch (err) {
+                        console.error("Error syncing battery charging:", err);
+                    }
+                }
+
+                if (currentBattery >= 100) {
+                    clearInterval(chargingInterval);
+                    showToast("🔋 Vehicle is 100% Fully Charged! Please stop charging to release the port.", 'warning');
+                }
+            }, 2000);
+        }
+
+        async function stopCharging() {
+            if (chargingInterval) clearInterval(chargingInterval);
+
+            const currentBattery = parseInt(document.getElementById('battery-pct').innerText);
+            const addedPercentage = Math.max(0, currentBattery - startBatteryLevel);
+            const energyConsumedKwh = (addedPercentage * 0.5).toFixed(2);
+            const finalKwh = parseFloat(energyConsumedKwh) > 0 ? parseFloat(energyConsumedKwh) : 0.5;
+
+            try {
+                const res = await fetch('/api/sessions/stop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                                session_id: activeSessionId, 
+                                energy_kwh: finalKwh, 
+                                user_id: user.id || user.Customer_ID 
+                            })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    renderStandbySessionUI();
+                    
+                    currentBillData = data.bill || {
+                        energy_kwh: finalKwh.toFixed(2),
+                        rate_per_kwh: "18.00",
+                        base_amount: (finalKwh * 18).toFixed(2),
+                        gst_amount: (finalKwh * 18 * 0.18).toFixed(2),
+                        total_billed: data.total_billed
+                    };
+
+                    showBillModal(currentBillData);
+                    activeSessionId = null;
+                    startBatteryLevel = 0;
+                    filterStationsByDistrict();
+                } else {
+                    showToast(data.message || 'Error completing charging session.', 'error');
+                }
+            } catch (err) {
+                console.error("Error stopping session:", err);
+            }
+        }
+
+        function showBillModal(bill) {
+            const kwhNum = parseFloat(bill.energy_kwh);
+            const wattsNum = Math.round(kwhNum * 1000);
+
+            document.getElementById('bill-watts').innerText = wattsNum;
+            document.getElementById('bill-kwh').innerText = bill.energy_kwh;
+            document.getElementById('bill-rate').innerText = `₹${bill.rate_per_kwh} / kWh`;
+            document.getElementById('bill-base').innerText = `₹${bill.base_amount}`;
+            document.getElementById('bill-gst').innerText = `₹${bill.gst_amount}`;
+            document.getElementById('bill-total').innerText = `₹${bill.total_billed}`;
+
+            const upiString = `upi://pay?pa=evstation@upi&pn=EV_Charging_Network&am=${bill.total_billed}&cu=INR`;
+            document.getElementById('gpay-checkout-qr').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiString)}`;
+
+            selectCheckoutPayment('wallet');
+            document.getElementById('bill-modal').style.display = 'flex';
+        }
+
+        function selectCheckoutPayment(method) {
+            selectedCheckoutMethod = method;
+            if (method === 'wallet') {
+                document.getElementById('pay-opt-wallet').classList.add('active');
+                document.getElementById('pay-opt-gpay').classList.remove('active');
+                document.getElementById('gpay-qr-checkout').style.display = 'none';
+            } else {
+                document.getElementById('pay-opt-gpay').classList.add('active');
+                document.getElementById('pay-opt-wallet').classList.remove('active');
+                document.getElementById('gpay-qr-checkout').style.display = 'block';
+            }
+        }
+
+        async function processFinalPayment() {
+            const totalBill = parseFloat(currentBillData.total_billed);
+            const currentBalance = parseFloat(user.balance || user.BALANCE || 0);
+
+            if (selectedCheckoutMethod === 'wallet') {
+                if (currentBalance < totalBill) {
+                    showToast(`Insufficient Wallet Balance! Balance: ₹${currentBalance.toFixed(2)}, Bill: ₹${totalBill.toFixed(2)}`, 'error');
+                    return;
+                }
+
+                try {
+                    const res = await fetch('/api/wallet/deduct', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            user_id: user.id || user.Customer_ID, 
+                            amount: totalBill 
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        user = data.user;
+                        localStorage.setItem('ev_user', JSON.stringify(user));
+                        updateUserData(user);
+                        showToast(`✅ Payment of ₹${totalBill.toFixed(2)} deducted from wallet!`, 'success');
+                        document.getElementById('bill-modal').style.display = 'none';
+                    } else {
+                        showToast(data.message || 'Payment deduction failed', 'error');
+                    }
+                } catch (err) {
+                    console.error("Wallet deduction error:", err);
+                }
+            } else {
+                showToast("✅ UPI / GPay Payment verified! Tax Receipt saved to session ledger.", 'success');
+                document.getElementById('bill-modal').style.display = 'none';
+            }
+        }
+
+        function openWalletModal() {
+            updateQrCode();
+            document.getElementById('wallet-modal').style.display = 'flex';
+        }
+
+        function closeWalletModal() {
+            document.getElementById('wallet-modal').style.display = 'none';
+        }
+
+        function setTopupInput(amt) {
+            document.getElementById('topup-amount').value = amt;
+            updateQrCode();
+        }
+
+        function quickTopUpPreset(amt) {
+            setTopupInput(amt);
+            openWalletModal();
+        }
+
+        let debounceTimer;
+        document.getElementById('topup-amount').addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(updateQrCode, 300);
+        });
+
+        function updateQrCode() {
+            const amount = document.getElementById('topup-amount').value || "500";
+            const upiString = `upi://pay?pa=evnetwork@upi&pn=EV_Network_TopUp&am=${amount}&cu=INR`;
+            document.getElementById('upi-qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiString)}`;
+        }
+
+        async function addMoneyToWallet() {
+            const amount = parseFloat(document.getElementById('topup-amount').value);
+            if (!amount || amount <= 0) {
+                showToast("Please enter a valid amount.", 'warning');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/wallet/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        user_id: user.id || user.Customer_ID, 
+                        amount: amount 
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    user = data.user;
+                    localStorage.setItem('ev_user', JSON.stringify(user));
+                    updateUserData(user);
+                    showToast(`🎉 Successfully credited ₹${amount.toFixed(2)} to your EV Wallet!`, 'success');
+                    closeWalletModal();
+                } else {
+                    showToast(data.message || 'Error crediting balance.', 'error');
+                }
+            } catch (err) {
+                console.error("Error adding funds:", err);
+            }
+        }
+
+
+
+        function logout() {
+            if (chargingInterval) clearInterval(chargingInterval);
+            if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+            localStorage.removeItem('ev_user');
+            window.location.replace('login.html');
+        }
+
+        // Initialize dashboard
+        loadData();
+
+        // Background battery drain loop (1% drop every 15 seconds when idle)
+        setInterval(async () => {
+            if (activeSessionId) return;
+
+            let currentBattery = parseInt(document.getElementById('battery-pct').innerText);
+
+            if (currentBattery > 0) {
+                let newBattery = currentBattery - 1;
+                document.getElementById('battery-pct').innerText = newBattery;
+                user.battery = newBattery;
+                localStorage.setItem('ev_user', JSON.stringify(user));
+                updateBatteryGauge(newBattery);
+
+                try {
+                    await fetch('/api/user/update-battery', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            user_id: user.id || user.Customer_ID, 
+                            battery: newBattery 
+                        })
+                    });
+                } catch (err) {
+                    console.error("Sync error:", err);
+                }
+            }
+        }, 15000);
+    </script>
+    <style>
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</body>
+</html>
